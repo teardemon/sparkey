@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -106,17 +105,38 @@ static size_t total_file_size(const char** files) {
   }
 }
 
-float wall() {
+#ifdef __APPLE__
+#include <mach/mach_time.h>
+static float wall() {
+  mach_timebase_info_data_t info;
+  mach_timebase_info(&info);
+  double multiplier = (double) info.numer / (double) info.denom;
+  return (float) (multiplier * mach_absolute_time());
+}
+static float cpu() {
+  return wall();
+}
+
+#else
+
+#include <time.h>
+#ifdef CLOCK_MONOTONIC_RAW
+#define CLOCK_SUITABLE CLOCK_MONOTONIC_RAW
+#else
+#define CLOCK_SUITABLE CLOCK_MONOTONIC
+#endif
+static float wall() {
   struct timespec tp;
-  clock_gettime(CLOCK_MONOTONIC, &tp);
+  clock_gettime(CLOCK_SUITABLE, &tp);
   return tp.tv_sec + 1e-9 * tp.tv_nsec;
 }
 
-float cpu() {
+static float cpu() {
   struct timespec tp;
   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tp);
   return tp.tv_sec + 1e-9 * tp.tv_nsec;
 }
+#endif
 
 typedef struct {
   char *name;
